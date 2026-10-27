@@ -445,3 +445,58 @@ async def test_apply_patch_failed_status_not_overwritten_by_later_completed_op()
     assert raw_item["status"] == "failed"
     assert "Failed a.md" in result.output
     assert "Created b.md" in result.output
+
+
+@pytest.mark.asyncio
+async def test_apply_patch_operation_carries_the_call_id() -> None:
+    editor = RecordingEditor()
+    tool = ApplyPatchTool(editor=editor)
+    agent, context_wrapper, tool_run = build_apply_patch_call(
+        tool, "call_audit", {"type": "update_file", "path": "tasks.md", "diff": "-a\n+b\n"}
+    )
+
+    await ApplyPatchAction.execute(
+        agent=agent,
+        call=tool_run,
+        hooks=RunHooks[Any](),
+        context_wrapper=context_wrapper,
+        config=RunConfig(),
+    )
+
+    # the editor gets the id of the call it is applying, so it can audit or gate the write
+    assert editor.operations[0].call_id == "call_audit"
+
+
+@pytest.mark.asyncio
+async def test_apply_patch_operations_of_one_call_share_the_call_id() -> None:
+    editor = RecordingEditor()
+    tool = ApplyPatchTool(editor=editor)
+
+    class MultiOperationCall(DummyApplyPatchCall):
+        def model_dump(self, **_kwargs: Any) -> dict[str, Any]:
+            return {
+                "type": self.type,
+                "call_id": self.call_id,
+                "operations": [self.operation],
+            }
+
+    context_wrapper = make_context_wrapper()
+    agent = Agent(name="patcher", tools=[tool])
+    tool_run = ToolRunApplyPatchCall(
+        tool_call=MultiOperationCall(
+            type="apply_patch_call",
+            call_id="call_multi",
+            operation={"type": "update_file", "path": "tasks.md", "diff": "-a\n+b\n"},
+        ),
+        apply_patch_tool=tool,
+    )
+
+    await ApplyPatchAction.execute(
+        agent=agent,
+        call=tool_run,
+        hooks=RunHooks[Any](),
+        context_wrapper=context_wrapper,
+        config=RunConfig(),
+    )
+
+    assert [operation.call_id for operation in editor.operations] == ["call_multi"]

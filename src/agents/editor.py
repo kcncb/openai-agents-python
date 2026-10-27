@@ -21,6 +21,12 @@ class ApplyPatchOperation:
     diff: str | None = None
     ctx_wrapper: RunContextWrapper | None = None
     move_to: str | None = None
+    call_id: str | None = None
+    """The id of the apply_patch call this operation belongs to, when one is known.
+
+    Every operation of a single call carries the same id, so an editor can group the writes of one
+    call, audit them, or check that what it is about to write is the call a person approved.
+    """
 
 
 @dataclass(**_DATACLASS_KWARGS)

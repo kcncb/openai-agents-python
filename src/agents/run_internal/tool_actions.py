@@ -921,11 +921,14 @@ class ApplyPatchAction:
         """Run an apply_patch call and serialize the editor result for the model."""
         apply_patch_tool: ApplyPatchTool = call.apply_patch_tool
         agent_hooks = agent.hooks
+        call_id = extract_apply_patch_call_id(call.tool_call)
+        # every operation of this call carries the call id, so an editor can tell which approval
+        # (or which model call) a write belongs to without having to remember the operation itself
         operations = coerce_apply_patch_operations(
             call.tool_call,
             context_wrapper=context_wrapper,
+            call_id=call_id,
         )
-        call_id = extract_apply_patch_call_id(call.tool_call)
         current_item = ToolApprovalItem(
             agent=agent,
             raw_item=call.tool_call,

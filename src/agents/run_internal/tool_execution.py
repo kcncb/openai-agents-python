@@ -794,12 +794,15 @@ def coerce_apply_patch_operations(
     tool_call: Any | None = None,
     *,
     context_wrapper: RunContextWrapper[Any],
+    call_id: str | None = None,
 ) -> list[ApplyPatchOperation]:
     """Normalize apply_patch payloads into one or more editor operations."""
     raw_operations = get_mapping_or_attr(tool_call, "operations")
     if isinstance(raw_operations, list):
         operations = [
-            _coerce_apply_patch_operation_payload(operation, context_wrapper=context_wrapper)
+            _coerce_apply_patch_operation_payload(
+                operation, context_wrapper=context_wrapper, call_id=call_id
+            )
             for operation in raw_operations
         ]
         if not operations:
@@ -809,14 +812,16 @@ def coerce_apply_patch_operations(
     raw_operation = get_mapping_or_attr(tool_call, "operation")
     if raw_operation is not None:
         return [
-            _coerce_apply_patch_operation_payload(raw_operation, context_wrapper=context_wrapper)
+            _coerce_apply_patch_operation_payload(
+                raw_operation, context_wrapper=context_wrapper, call_id=call_id
+            )
         ]
 
     raise ModelBehaviorError("Apply patch call is missing an operation payload.")
 
 
 def _coerce_apply_patch_operation_payload(
-    raw_operation: Any, *, context_wrapper: RunContextWrapper[Any]
+    raw_operation: Any, *, context_wrapper: RunContextWrapper[Any], call_id: str | None = None
 ) -> ApplyPatchOperation:
     """Normalize the tool payload into an ApplyPatchOperation the editor can consume."""
     if raw_operation is None:
@@ -847,6 +852,7 @@ def _coerce_apply_patch_operation_payload(
         diff=diff,
         ctx_wrapper=context_wrapper,
         move_to=_coerce_apply_patch_move_to(raw_operation),
+        call_id=call_id,
     )
 
 
